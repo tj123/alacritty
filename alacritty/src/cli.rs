@@ -166,6 +166,14 @@ pub struct TerminalOptions {
     /// Command and args to execute (must be last argument).
     #[clap(short = 'e', long, allow_hyphen_values = true, num_args = 1..)]
     command: Vec<String>,
+
+    /// Command and args to execute (must be last argument). 另外一种方法运行
+    #[arg(short = 'c', long, conflicts_with = "command")]
+    pub cmd: Option<String>,
+
+    /// 指定窗口 id 并移动记录
+    #[arg(short = 'i', long)]
+    pub win_id: Option<String>,
 }
 
 impl TerminalOptions {

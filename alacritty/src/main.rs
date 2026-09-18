@@ -47,6 +47,7 @@ mod renderer;
 mod scheduler;
 mod string;
 mod window_context;
+mod window_state;
 
 mod gl {
     #![allow(clippy::all, unsafe_op_in_unsafe_fn)]
@@ -66,7 +67,8 @@ use crate::macos::locale;
 #[cfg(unix)]
 use crate::polling::{IoListener, ipc};
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     #[cfg(windows)]
     panic::attach_handler();
 

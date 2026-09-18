@@ -19,6 +19,8 @@ use {
 };
 
 use std::fmt::{self, Display, Formatter};
+use std::io;
+use std::io::{IsTerminal, Read};
 
 #[cfg(target_os = "macos")]
 use {
@@ -28,7 +30,7 @@ use {
 };
 
 use bitflags::bitflags;
-use winit::dpi::{PhysicalPosition, PhysicalSize};
+use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event_loop::ActiveEventLoop;
 use winit::monitor::MonitorHandle;
 #[cfg(windows)]
@@ -45,6 +47,7 @@ use crate::cli::WindowOptions;
 use crate::config::UiConfig;
 use crate::config::window::{Decorations, Identity, WindowConfig};
 use crate::display::SizeInfo;
+use crate::window_state::{WindowState};
 
 /// Window icon for `_NET_WM_ICON` property.
 #[cfg(all(feature = "x11", not(any(target_os = "macos", windows))))]
@@ -122,9 +125,16 @@ pub struct Window {
     current_mouse_cursor: CursorIcon,
     mouse_visible: bool,
     ime_inhibitor: ImeInhibitor,
+
+    pub cmd: Option<String>,
+    /// 缓存命令的输入（stdin 管道数据），带大小限制。
+    pub cmd_stdin: Option<String>,
+
+    /// 保存窗体信息
+    state: Option<WindowState>
 }
 
-impl Window {
+impl Window{
     /// Create a new window.
     ///
     /// This creates a window and fully initializes a window.
@@ -150,6 +160,24 @@ impl Window {
         if let Some(position) = config.window.position {
             window_attributes = window_attributes
                 .with_position(PhysicalPosition::<i32>::from((position.x, position.y)));
+        }
+
+        let win_id = options.terminal_options.win_id.clone();
+        let state = if let Some(id) = win_id {
+            Some(WindowState::new(id))
+        }else {
+            None
+        };
+
+        if let Some(st) = &state {
+            let s = st.payload.lock().unwrap();
+            if !s.is_empty() {
+                let size = PhysicalSize::<u32>::from_logical(
+                    LogicalSize::new(s.width, s.height), 1.75);
+                window_attributes = window_attributes
+                    .with_position(PhysicalPosition::<i32>::from((s.x, s.y)))
+                    .with_inner_size(size);
+            }
         }
 
         #[cfg(not(any(target_os = "macos", windows)))]
@@ -203,6 +231,14 @@ impl Window {
         log::info!("Window scale factor: {scale_factor}");
         let is_x11 = matches!(window.window_handle().unwrap().as_raw(), RawWindowHandle::Xlib(_));
 
+        let mut stdin_buf = String::new();
+        let cmd_stdin = if io::stdin().is_terminal() { None } else {
+            match io::stdin().read_to_string(&mut stdin_buf) {
+                Ok(_) => Some(stdin_buf),
+                Err(_) => None,
+            }
+        };
+
         Ok(Self {
             hold: options.terminal_options.hold,
             requested_redraw: false,
@@ -214,6 +250,9 @@ impl Window {
             window,
             is_x11,
             ime_inhibitor: Default::default(),
+            cmd: options.terminal_options.cmd.clone(),
+            cmd_stdin,
+            state,
         })
     }
 
@@ -230,6 +269,16 @@ impl Window {
     #[inline]
     pub fn inner_size(&self) -> PhysicalSize<u32> {
         self.window.inner_size()
+    }
+
+    /// 记录窗体当前位置和大小（带消抖）。
+    pub fn save_window_state(&mut self) {
+        if let Some(state) = self.state.as_mut() {
+            let Ok(pos) = self.window.outer_position() else { return };
+            // let scale_factor = self.window.scale_factor();
+            let size = self.window.inner_size().to_logical(self.scale_factor);
+            state.update(pos.x, pos.y, size.width, size.height, self.scale_factor);
+        }
     }
 
     #[inline]

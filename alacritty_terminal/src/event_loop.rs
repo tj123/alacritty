@@ -224,6 +224,8 @@ where
                 None
             };
 
+            self.event_proxy.send_event(Event::PtyReady);
+
             'event_loop: loop {
                 // Wakeup the event loop when a synchronized update timeout was reached.
                 let handler = state.parser.sync_timeout();

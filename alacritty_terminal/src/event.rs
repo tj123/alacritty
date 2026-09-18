@@ -56,6 +56,9 @@ pub enum Event {
 
     /// Child process exited.
     ChildExit(ExitStatus),
+
+    /// pty 初始化完成
+    PtyReady,
 }
 
 impl Debug for Event {
@@ -74,6 +77,7 @@ impl Debug for Event {
             Event::Bell => write!(f, "Bell"),
             Event::Exit => write!(f, "Exit"),
             Event::ChildExit(status) => write!(f, "ChildExit({status:?})"),
+            Event::PtyReady => write!(f, "PtyReady"),
         }
     }
 }

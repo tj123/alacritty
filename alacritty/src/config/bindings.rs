@@ -241,6 +241,10 @@ pub enum Action {
     /// Allow receiving char input.
     ReceiveChar,
 
+    /// Run the command stored in the window.
+    #[config(skip)]
+    RunWindowCmd,
+
     /// Start a forward buffer search.
     SearchForward,
 
@@ -556,6 +560,7 @@ fn common_keybindings() -> Vec<KeyBinding> {
         "=",    ModifiersState::CONTROL;                                                                 Action::IncreaseFontSize;
         "+",    ModifiersState::CONTROL;                                                                 Action::IncreaseFontSize;
         "-",    ModifiersState::CONTROL;                                                                 Action::DecreaseFontSize;
+        "r",    ModifiersState::CONTROL, ~BindingMode::VI, ~BindingMode::SEARCH;                         Action::RunWindowCmd;
         "+" => KeyLocation::Numpad, ModifiersState::CONTROL;                                             Action::IncreaseFontSize;
         "-" => KeyLocation::Numpad, ModifiersState::CONTROL;                                             Action::DecreaseFontSize;
     )

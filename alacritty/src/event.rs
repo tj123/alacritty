@@ -222,7 +222,7 @@ impl Processor {
                 | WindowEvent::Destroyed
                 | WindowEvent::ThemeChanged(_)
                 | WindowEvent::HoveredFile(_)
-                | WindowEvent::Moved(_)
+                // | WindowEvent::Moved(_)
         )
     }
 }
@@ -691,6 +691,20 @@ impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionCon
     #[inline]
     fn write_to_pty<B: Into<Cow<'static, [u8]>>>(&self, val: B) {
         self.notifier.notify(val);
+    }
+
+    /// 运行窗体命令
+    fn run_window_cmd(&mut self) {
+        let win = self.window();
+        if let Some(mut cmd) = win.cmd.clone() {
+            if let Some(cmd_stdin) = win.cmd_stdin.clone(){
+                cmd += " << 'EOF'\n";
+                cmd += &cmd_stdin;
+                cmd += "EOF";
+            }
+            cmd.push('\n');
+            self.write_to_pty(cmd.into_bytes());
+        }
     }
 
     /// Request a redraw.
@@ -1927,6 +1941,7 @@ impl input::Processor<EventProxy, ActionContext<'_, Notifier, EventProxy>> {
                     TerminalEvent::MouseCursorDirty => self.reset_mouse_cursor(),
                     TerminalEvent::CursorBlinkingChange => self.ctx.update_cursor_blinking(),
                     TerminalEvent::Exit | TerminalEvent::ChildExit(_) | TerminalEvent::Wakeup => (),
+                    TerminalEvent::PtyReady => self.ctx.run_window_cmd(),
                 },
                 #[cfg(unix)]
                 EventType::IpcConfig(_) | EventType::IpcGetConfig(..) | EventType::Shutdown => (),
@@ -1964,6 +1979,7 @@ impl input::Processor<EventProxy, ActionContext<'_, Notifier, EventProxy>> {
                         }
 
                         self.ctx.display.pending_update.set_dimensions(size);
+                        self.ctx.window().save_window_state();
                     },
                     WindowEvent::KeyboardInput { event, is_synthetic: false, .. } => {
                         self.key_input(event);
@@ -2041,6 +2057,9 @@ impl input::Processor<EventProxy, ActionContext<'_, Notifier, EventProxy>> {
                             *self.ctx.dirty = true;
                         },
                     },
+                    WindowEvent::Moved(_pos) => {
+                        self.ctx.window().save_window_state();
+                    },
                     WindowEvent::KeyboardInput { is_synthetic: true, .. }
                     | WindowEvent::ActivationTokenDone { .. }
                     | WindowEvent::DoubleTapGesture { .. }
@@ -2054,8 +2073,8 @@ impl input::Processor<EventProxy, ActionContext<'_, Notifier, EventProxy>> {
                     | WindowEvent::Destroyed
                     | WindowEvent::ThemeChanged(_)
                     | WindowEvent::HoveredFile(_)
-                    | WindowEvent::RedrawRequested
-                    | WindowEvent::Moved(_) => (),
+                    | WindowEvent::RedrawRequested => (),
+                    // WindowEvent::Moved
                 }
             },
             WinitEvent::Suspended
