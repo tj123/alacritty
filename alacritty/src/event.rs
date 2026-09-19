@@ -19,7 +19,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{env, f32, mem};
-
+use std::thread::sleep;
 use ahash::RandomState;
 use crossfont::Size as FontSize;
 use glutin::config::Config as GlutinConfig;
@@ -694,15 +694,20 @@ impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionCon
     }
 
     /// 运行窗体命令
-    fn run_window_cmd(&mut self) {
+    fn run_window_cmd(&mut self, first: bool) {
         let win = self.window();
         if let Some(mut cmd) = win.cmd.clone() {
-            if let Some(cmd_stdin) = win.cmd_stdin.clone(){
-                cmd += " << 'EOF'\n";
-                cmd += &cmd_stdin;
-                cmd += "EOF";
+            if let Some(cmd_stdin) = win.cmd_stdin.clone() {
+                if !cmd_stdin.trim().is_empty() {
+                    cmd += " << 'EOF'\n";
+                    cmd += &cmd_stdin;
+                    cmd += "EOF";
+                }
             }
             cmd.push('\n');
+            if first {
+                sleep(Duration::from_millis(500));
+            }
             self.write_to_pty(cmd.into_bytes());
         }
     }
@@ -1941,7 +1946,7 @@ impl input::Processor<EventProxy, ActionContext<'_, Notifier, EventProxy>> {
                     TerminalEvent::MouseCursorDirty => self.reset_mouse_cursor(),
                     TerminalEvent::CursorBlinkingChange => self.ctx.update_cursor_blinking(),
                     TerminalEvent::Exit | TerminalEvent::ChildExit(_) | TerminalEvent::Wakeup => (),
-                    TerminalEvent::PtyReady => self.ctx.run_window_cmd(),
+                    TerminalEvent::PtyReady => self.ctx.run_window_cmd(true),
                 },
                 #[cfg(unix)]
                 EventType::IpcConfig(_) | EventType::IpcGetConfig(..) | EventType::Shutdown => (),

@@ -20,7 +20,8 @@ use std::{env, fs};
 
 use log::info;
 #[cfg(windows)]
-use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, FreeConsole};
+// use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, FreeConsole};
+use windows_sys::Win32::System::Console::{FreeConsole};
 use winit::event_loop::EventLoop;
 #[cfg(all(feature = "x11", not(any(target_os = "macos", windows))))]
 use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
@@ -75,10 +76,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // When linked with the windows subsystem windows won't automatically attach
     // to the console of the parent process, so we do it explicitly. This fails
     // silently if the parent has no console.
-    #[cfg(windows)]
-    unsafe {
-        AttachConsole(ATTACH_PARENT_PROCESS);
-    }
+    // #[cfg(windows)]
+    // unsafe {
+    //     AttachConsole(ATTACH_PARENT_PROCESS);
+    // }
 
     // Load command line options.
     let options = Options::new();

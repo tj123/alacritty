@@ -81,7 +81,7 @@ pub struct Processor<T: EventListener, A: ActionContext<T>> {
 
 pub trait ActionContext<T: EventListener> {
     fn write_to_pty<B: Into<Cow<'static, [u8]>>>(&self, _data: B) {}
-    fn run_window_cmd(&mut self) {}
+    fn run_window_cmd(&mut self, _first: bool) {}
     fn mark_dirty(&mut self) {}
     fn size_info(&self) -> SizeInfo;
     fn copy_selection(&mut self, _ty: ClipboardType) {}
@@ -172,7 +172,7 @@ impl<T: EventListener> Execute<T> for Action {
         match self {
             Action::Esc(s) => ctx.paste(s, false),
             Action::Command(program) => ctx.spawn_daemon(program.program(), program.args()),
-            Action::RunWindowCmd => ctx.run_window_cmd(),
+            Action::RunWindowCmd => ctx.run_window_cmd(false),
             Action::Hint(hint) => {
                 ctx.display().hint_state.start(hint.clone());
                 ctx.mark_dirty();
